@@ -1,0 +1,18 @@
+This document's purpose is to highlight and discuss design decisions that were made in the creation of the invalid-email-finder script
+
+Overview:
+The purpose of this script is to capture and record invalid emails that are contained within an .mbox file. These files are the backup files of an email address' inbox, so they can get large. 
+
+The script uses a regular expression to 
+
+Language:
+Perl was chosen because of it's excellent regex engine. Unfortunately, it isn't the most elegant of languages for readability. I may decide to switch this over to another language, but right now I'm going to go with Perl.
+
+Regular expression: 
+To the unitiated eye, regular expressions are the things hackers use to hack :). In fact, they are actually a very useful to searching for patterns in text files. 
+
+The regular expression used to find invalid emails in an .mbox file in this script is this:
+
+
+Here is a breakdown of what this impossible bunch of symbols, letters, and numbers mean in English:
+
