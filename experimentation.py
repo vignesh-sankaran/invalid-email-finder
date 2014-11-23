@@ -45,6 +45,5 @@ def main():
 	print "List of unique subjects: "
 	for subject in unique_subjects:
 		print subject
-
 if __name__ == "__main__":
     main()
