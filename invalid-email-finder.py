@@ -10,6 +10,12 @@ POSTMASTER = "postmaster@"
 MAILER_DAEMON = "mailer-daemon@"
 DELAY = "delay" # Checking email subjects for the word delay. We don't want to search for emails addresses with delayed sending
 
+# Constant values for checking subject strings
+UNDELIVERABLE = "undeliverable"
+FAIL = "fail"
+UNDELIVERED_MAIL = "undelivered mail"
+RETURNED_MAIL = "returned mail"
+
 # Runs the script
 def main():
 	print "Welcome to the invalid email finder."
@@ -71,20 +77,11 @@ def find_emails(inbox):
 	for message in inbox:
 		message_from = message['From'].lower()
 		# Get the subject of an email, convert to empty string if there isn't a subject
-		message_subject = message.get('Subject', '')
-
-		# If subject is not empty, convert it to lower case
-		if message_subject != "":
-			message_subject = message_subject.lower()
-
+		message_subject = message.get('Subject', '').lower()
 		if POSTMASTER in message_from or MAILER_DAEMON in message_from:
-			postmaster_messages += 1
 			if DELAY not in message_subject:
-				if FAIL in message_subject or UNDELIVERABLE in message_subject:
-					criteria_met_count += 1
-
-	print postmaster_messages
-	print criteria_met_count
+				if FAIL in message_subject or UNDELIVERABLE in message_subject or UNDELIVERED_MAIL in message_subject or RETURNED_MAIL in message_subject:
+					
 
 # Find list of subjects that are from emails addresses potentially holding invalid emails (see global constants)
 def find_subjects(inbox):
