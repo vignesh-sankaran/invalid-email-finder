@@ -10,7 +10,7 @@ POSTMASTER = "postmaster@"
 MAILER_DAEMON = "mailer-daemon@"
 DELAY = "delay" # Checking email subjects for the word delay. We don't want to search for emails addresses with delayed sending
 
-# Constant values for checking subject strings
+# Constant values for checking subject strings. Based on analysis from experimentation.py
 UNDELIVERABLE = "undeliverable"
 FAIL = "fail"
 UNDELIVERED_MAIL = "undelivered mail"
