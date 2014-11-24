@@ -32,10 +32,13 @@ def main():
 	# Variables for for loop
 	total_emails = 0 # Counts total number of emails
 	potential_bounced_email_count = 0 # Variable for counting number of potentially bounced emails
-	subject_not_undeliverable_fail = 0 # Variable that counts for all other subject headings from potentially bounced emails that 
-	message_body_list = [] # List variable to storing the messages that meet the valid criteria
+	subject_not_undeliverable_fail = 0 # Variable that counts for all other subject headings from potentially bounced emails
 	subject_list = [] # List variable for getting subject lines from emails meeting criteria
-
+	# List variables for storing message bodies based on their subject lines
+	fail_message_list = []
+	undeliverable_message_list = []
+	undelivered_mail_message_list = []
+	returned_mail_message_list = []
 	# A single for loop was used to iterate through the mbox file for performance reasons
 	print "Looping through emails. Please wait..."
 	for message in inbox:
@@ -45,19 +48,45 @@ def main():
 		if DELAY not in message_subject:
 			if POSTMASTER in message_from or MAILER_DAEMON in message_from:
 				potential_bounced_email_count += 1
-				if FAIL in message_subject or UNDELIVERABLE in message_subject or UNDELIVERED_MAIL in message_subject or RETURNED_MAIL in message_subject:
-					message_body_list.append(message.get_payload());
-					subject_list.append(message_subject) #extend() seems to only add the first character of the subject to the subject list
+				subject_list.append(message_subject) #extend() seems to only add the first character of the subject to the subject list
+				# Store message body in list depending on subject line
+				if FAIL in message_subject:
+					fail_message_list.append(message.get_payload())
+				elif UNDELIVERABLE in message_subject:
+					undeliverable_message_list.append(message.get_payload())
+				elif UNDELIVERED_MAIL in message_subject:
+					undelivered_mail_message_list.append(message.get_payload())
+				elif RETURNED_MAIL in message_subject:
+					returned_mail_message_list.append(message.get_payload())
 
-	# Write email messages that meet the above criteria to a text file
-	print "Writing emails to a text file..."
-	emails = open('emails.txt', 'a')
-	for index in range(len(message_body_list)):
-		emails.write(str(message_body_list[index]))
-	emails.close()
+	# Write email messages that meet the above criteria to text files
+	print "Writing fail subject emails to text file..."
+	fail_emails = open('01fail_emails.txt', 'w') # Second option 'w' represents write a new file if one doesn't exist, otherwise, append to an existing one
+	for index in range(len(fail_message_list)):
+		fail_emails.write(str(fail_message_list[index]))
+	fail_emails.close()
 	print "Done"
 
+	print "Writing undeliverable subject emails to text file..."
+	undeliverable_emails = open('02undeliverable_emails.txt', 'w')
+	for index in range(len(undeliverable_message_list)):
+		undeliverable_emails.write(str(undeliverable_message_list[index]))
+	undeliverable_emails.close()
+	print "Done"
 
+	print "Writing undelivered mail subject emails to text file..."
+	undelivered_emails = open('03undelivered_emails.txt', 'w')
+	for index in range(len(undelivered_mail_message_list)):
+		undelivered_emails.write(str(undelivered_mail_message_list[index]))
+	undelivered_emails.close()
+	print "Done"
+
+	print "Writing returned mail subject emails to text file..."
+	returned_emails = open('04returned_emails.txt', 'w')
+	for index in range(len(returned_mail_message_list)):
+		returned_emails.write(str(returned_mail_message_list[index]))
+	returned_emails.close()
+	print "Done"
 
 	# Remove duplicated subjects
 	unique_subjects = list(set(subject_list))
