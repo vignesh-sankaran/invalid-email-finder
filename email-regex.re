@@ -8,4 +8,4 @@ Subject.+(returned\smail:\ssee\stranscript\sfor\sdetails)
 
 (?<=X-Failed-Recipients:\s)([A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,6}) # For finding invalid emails from gmail's servers
 
-(?<=rfc822;)(.)+
+(?<=rfc822;)(?:\s)?(.)+ # Finds email contained within Final-Recipient string and strips out the preceding rfc822
