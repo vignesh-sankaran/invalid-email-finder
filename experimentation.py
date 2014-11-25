@@ -7,6 +7,7 @@ import sys
 import mailbox
 import email
 import re
+import os
 
 # Constant values for from email addresses. Note that there are no constants in Python
 POSTMASTER = "postmaster@"
@@ -49,6 +50,8 @@ def main():
 	md_multipart = []
 	md_non_multipart = []
 	postmaster = []
+	# Compile regex pattern to avoid multiple recompilation and increase efficiency
+	pattern = re.compile('(?<=rfc822;)(?:\s)?(.)+', re.IGNORECASE)
 	# A single for loop was used to iterate through the mbox file for performance reasons
 	print "Looping through emails. Please wait..."
 	for message in inbox:
@@ -72,8 +75,11 @@ def main():
 							# Get email address stored within second subpart within email header.
 							# Now need to figure out why I can't just do it like this: 
 							# http://stackoverflow.com/questions/5298285/detecting-if-an-email-is-a-delivery-status-notification-and-extract-informatio
-							md_multipart.append(message.get_payload(1).get_payload()[1]['Final-Recipient'])
-							email_list.append(message.get_payload(1).get_payload()[1]['Final-Recipient'])
+							match = pattern.search(message.get_payload(1).get_payload()[1]['Final-Recipient'])
+							print match.group(0)
+							email_address = match.group(0)
+							md_multipart.append(message.get_payload(1))
+							email_list.append(email_address)
 						else:
 							md_non_multipart.append(message)
 							number_not_multipart += 1
@@ -87,11 +93,7 @@ def main():
 
 						else:
 							postmaster_number_not_multipart += 1
-	
-	# Apply regex to email list
-	for index in range(len(email_list)):
-		m = re.search(r'(?<=rfc822;)(.)+', email_list[index])
-		email_list[index] = m.group()
+
 
 	# Save different email kinds to text files
 	print "Writing mailer daemon multipart emails to text file..."
@@ -119,8 +121,7 @@ def main():
 	print "Number of emails in email list: %i" % len(email_list)
 	print "First element in email list: %s" % email_list[0]
 
-	m = re.search('(?<=rfc822;)(.)+', md_multipart[0])
-	print "First element in md_multipart email list: %s" % m.group(0)
+	print "First element in md_multipart email list: %s" % md_multipart[0]
 
 	print "Total number of gmail messages: %i" % gmail_count
 
