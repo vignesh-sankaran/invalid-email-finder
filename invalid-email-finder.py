@@ -11,9 +11,9 @@ def main():
 	print "Welcome to the invalid email finder."
 	directory = read_input()
 	inbox = import_file(directory)
-	email_address_list = find_emails(inbox)
+	email_address_list = find_email_addresses(inbox)
 	# Save list to CSV file
-	export_emails(email_address_list)
+	export_email_addresses(email_address_list)
 
 # Read a file directory from the user
 def read_input():
@@ -27,9 +27,9 @@ def read_input():
 # Verify user input to see if it a directory
 def verify_input(directory):
 	#Check if the directory points to a mbox file
-	suffix = ".mbox"
+	SUFFIX = ".mbox"
 
-	if not directory.endswith(suffix):
+	if not directory.endswith(SUFFIX):
 		print "That is not an mbox file."
 		return False
 
@@ -50,7 +50,7 @@ def import_file(directory):
 	return inbox
 
 # Find invalid email addresses and return results in an array
-def find_emails(inbox):
+def find_email_addresses(inbox):
 
 	# Constant values for from email addresses. Note that there are no constants in Python
 	POSTMASTER = "postmaster@"
@@ -59,6 +59,7 @@ def find_emails(inbox):
 
 	# Constant values for checking subject strings. Based on analysis from experimentation.py
 	DELAY = "delay" # Checking email subjects for the word delay. We don't want to search for emails addresses with delayed sending
+	# Below are the 4 unique words that appeared in subject lines of potentially bounced emails
 	UNDELIVERABLE = "undeliverable"
 	FAIL = "fail"
 	UNDELIVERED_MAIL = "undelivered mail"
@@ -66,14 +67,14 @@ def find_emails(inbox):
 
 	# The following are words used to search for DSN's from the qmail server program
 	PERMANENT_ERROR = "permanent error"
-	CONNECTION_REFUSED = "Connection refused"
+	CONNECTION_REFUSED = "Connection refused" # Ensures that we're only finding bounced emails caused by invalid email addresses, not other causes
 
 	# Variables required for use with finding emails:
-	email_list = []
+	raw_email_address_list = []
 
 	# Regular expression pattern 
-	pattern = re.compile('(?<=rfc822;)(?:\s)?(.)+', re.IGNORECASE)
-	postmaster_multipart_pattern = re.compile('(?<=[<])([A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,6})', re.IGNORECASE)
+	multipart_pattern = re.compile('(?<=rfc822;)(.)+', re.IGNORECASE) # Regular expression checks for preceding rfc822 before picking up remaining string
+	md_non_multipart_pattern = re.compile('(?<=[<])([A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,6})', re.IGNORECASE) # Checks for < preceding before picking up a valid email address
 
 	print "Extracting invalid emails from the mbox file. Please be patient, this could take a while"
 	for message in inbox:
@@ -89,33 +90,33 @@ def find_emails(inbox):
 				
 					if GMAIL_EMAIL_ADDRESS in message_from: # Assuming gmail email addresses aren't registered by the mail package as multipart emails
 						# No email from google is multipart, that's ok, we can use the X-Failed-Recipients field instead :D
-						email_list.append(message['X-Failed-Recipients'])
+						raw_email_address_list.append(message['X-Failed-Recipients'].strip())
 
 					elif MAILER_DAEMON in message_from and GMAIL_EMAIL_ADDRESS not in message_from:
 						if message.is_multipart():
 							# Get email address stored within second subpart within email header.
 							# This if statement is to ensure the email is a DSN, since not all emails have the type message/delivery-status
 							if action_failed(message):
-								email_address = get_email_address(message, pattern)
-								email_list.append(email_address)
+								email_address = get_email_address(message, multipart_pattern)
+								raw_email_address_list.append(email_address)
 
 						else: # These non multipart emails from mailer-daemon are from the qmail email server program
 							message_as_string = str(message.get_payload())
 							if PERMANENT_ERROR in message_as_string and CONNECTION_REFUSED in message_as_string:
-								match = postmaster_multipart_pattern.search(message_as_string)
-								email_list.append(match.group(0))
+								match = md_non_multipart_pattern.search(message_as_string)
+								raw_email_address_list.append(match.group(0))
 
 					elif POSTMASTER in message_from:
 						if message.is_multipart():
 
 							if action_failed(message):
-								email_address = get_email_address(message, pattern)
-								email_list.append(email_address)
+								email_address = get_email_address(message, multipart_pattern)
+								raw_email_address_list.append(email_address)
 
 						# Finding postmaster emails that are not multipart hasn't been implemented yet
 						# When one comes along, I'll be interested to see how to extract the failed email from it :)
-	email_list = remove_duplicates(email_list)
-	return email_list
+	email_address_list = remove_duplicates(raw_email_address_list)
+	return email_address_list
 
 # Test if a message has the status of failed under the action field as a test of a multipart email being a bounced email
 def action_failed(message):
@@ -142,7 +143,7 @@ def remove_duplicates(inputted_list):
 	return cleaned_list
 
 # Writes the list of emails to a .csv file
-def export_emails(email_address_list):
+def export_email_addresses(email_address_list):
 	FILENAME = 'ouput.csv'
 	output_file = open(FILENAME, 'wb')
 	csv_writer = csv.writer(output_file, delimiter = '\n')
@@ -151,5 +152,6 @@ def export_emails(email_address_list):
 	for index in range(len(email_address_list)):
 		csv_writer.writerow([email_address_list[index]])
 	output_file.close()
+	print "output.csv saved"
 if __name__ == "__main__":
     main()
