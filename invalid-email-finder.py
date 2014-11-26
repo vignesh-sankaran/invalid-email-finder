@@ -1,4 +1,8 @@
 #!/usr/bin/env python
+# Author: Vignesh Sankaran
+# License: Apache 2.0
+# Purpose: Parses emails in a .mbox file for DSN's to extract invalid email addresses from and 
+# 			writes them to a .csv file
 import re
 import os
 import sys
@@ -150,7 +154,7 @@ def export_email_addresses(email_address_list):
 	print "Writing output to CSV file. NOTE: ANY EXISTING output.csv WILL BE OVERWRITTEN!"
 	csv_writer.writerow(['Email'])
 	for index in range(len(email_address_list)):
-		csv_writer.writerow([email_address_list[index]])
+		csv_writer.writerow([email_address_list[index]]) # Anything being written to a .csv file must be within []
 	output_file.close()
 	print "output.csv saved"
 if __name__ == "__main__":
