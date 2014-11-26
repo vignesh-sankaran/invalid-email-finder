@@ -46,6 +46,7 @@ def main():
 	postmaster_count = 0
 	postmaster_number_multipart = 0
 	postmaster_number_not_multipart = 0
+	count = 0
 	# List variables for storing message bodies based on their subject lines
 	md_multipart = []
 	md_non_multipart = []
@@ -76,8 +77,7 @@ def main():
 							# Now need to figure out why I can't just do it like this: 
 							# http://stackoverflow.com/questions/5298285/detecting-if-an-email-is-a-delivery-status-notification-and-extract-informatio
 							match = pattern.search(message.get_payload(1).get_payload()[1]['Final-Recipient'])
-							print match.group(0)
-							email_address = match.group(0)
+							email_address = match.group(0).strip()
 							md_multipart.append(message.get_payload(1))
 							email_list.append(email_address)
 						else:
@@ -88,16 +88,20 @@ def main():
 						postmaster_count += 1
 						if message.is_multipart():
 							postmaster_number_multipart += 1
-							postmaster.append(message.get_payload(1))
-							email_list.append(message['Final-Recipient'])
+							match1 = pattern.search(message.get_payload(1).get_payload()[1]['Final-Recipient'])
+							count += 1
+							print count
+							# print match1.group()
+							# email_address = match1.group(0).strip()
+							postmaster.append(message.get_payload(1).get_payload()[1])
+							# email_list.append(email_address)
 
 						else:
 							postmaster_number_not_multipart += 1
 
-
 	# Save different email kinds to text files
 	print "Writing mailer daemon multipart emails to text file..."
-	md_multipart_file = open('1_md_multipart.txt', 'wb')
+	md_multipart_file = open('1_md_multipart.txt', 'wb') #wb overwrites the file if it exists
 	for index in range(len(md_multipart)):
 		md_multipart_file.write(str(md_multipart[index]))
 	print "Done"
