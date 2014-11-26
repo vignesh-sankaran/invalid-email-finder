@@ -71,30 +71,33 @@ def main():
 
 					elif MAILER_DAEMON in message_from and "mailer-daemon@googlemail.com" not in message_from:
 						non_gmail_count += 1
-						if message.is_multipart():
+						if message.is_multipart() and message.get_payload(1).get_content_type() == 'message/delivery-status':
 							number_multipart += 1
 							# Get email address stored within second subpart within email header.
 							# Now need to figure out why I can't just do it like this: 
 							# http://stackoverflow.com/questions/5298285/detecting-if-an-email-is-a-delivery-status-notification-and-extract-informatio
+
 							match = pattern.search(message.get_payload(1).get_payload()[1]['Final-Recipient'])
 							email_address = match.group(0).strip()
 							md_multipart.append(message.get_payload(1))
 							email_list.append(email_address)
-						else:
-							md_non_multipart.append(message)
+						else: # These non multipart emails from mailer-daemon are from the qmail email server program
+							message_as_string = str(message.get_payload())
+							if 'permanent error' in message_as_string and 'Connection refused' in message_as_string:
+								match = re.search('(?<=[<])([A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,6})', message_as_string)
+								print match.group(0)
+								email_list.append(match.group(0))
+							md_non_multipart.append(message.get_payload())
 							number_not_multipart += 1
 
 					elif POSTMASTER in message_from:
 						postmaster_count += 1
-						if message.is_multipart():
+						if message.is_multipart() and message.get_payload(1).get_content_type() == 'message/delivery-status':
 							postmaster_number_multipart += 1
-							match1 = pattern.search(message.get_payload(1).get_payload()[1]['Final-Recipient'])
-							count += 1
-							print count
-							# print match1.group()
-							# email_address = match1.group(0).strip()
-							postmaster.append(message.get_payload(1).get_payload()[1])
-							# email_list.append(email_address)
+							match = pattern.search(message.get_payload(1).get_payload()[1]['Final-Recipient'])
+							email_address = match.group(0).strip()
+							postmaster.append(message.get_payload(1))
+							email_list.append(email_address)
 
 						else:
 							postmaster_number_not_multipart += 1
@@ -123,9 +126,6 @@ def main():
 	print "Number of potentially bounced emails: %i" % potential_bounced_email_count
 
 	print "Number of emails in email list: %i" % len(email_list)
-	print "First element in email list: %s" % email_list[0]
-
-	print "First element in md_multipart email list: %s" % md_multipart[0]
 
 	print "Total number of gmail messages: %i" % gmail_count
 
