@@ -51,6 +51,7 @@ def main():
 	md_multipart = []
 	md_non_multipart = []
 	postmaster = []
+	postmaster_non_multipart = []
 	# Compile regex pattern to avoid multiple recompilation and increase efficiency
 	pattern = re.compile('(?<=rfc822;)(?:\s)?(.)+', re.IGNORECASE)
 	# A single for loop was used to iterate through the mbox file for performance reasons
@@ -71,36 +72,37 @@ def main():
 
 					elif MAILER_DAEMON in message_from and "mailer-daemon@googlemail.com" not in message_from:
 						non_gmail_count += 1
-						if message.is_multipart() and message.get_payload(1).get_content_type() == 'message/delivery-status':
+						if message.is_multipart():
 							number_multipart += 1
 							# Get email address stored within second subpart within email header.
-							# Now need to figure out why I can't just do it like this: 
-							# http://stackoverflow.com/questions/5298285/detecting-if-an-email-is-a-delivery-status-notification-and-extract-informatio
-
-							match = pattern.search(message.get_payload(1).get_payload()[1]['Final-Recipient'])
-							email_address = match.group(0).strip()
-							md_multipart.append(message.get_payload(1))
-							email_list.append(email_address)
+							# This if statement is to ensure the email is a DSN, since not all emails have the type message/deliver-status
+							if action_failed(message):
+								email_address = get_email_address(message, pattern)
+								md_multipart.append(message.get_payload(1).get_payload(1))
+								email_list.append(email_address)
 						else: # These non multipart emails from mailer-daemon are from the qmail email server program
 							message_as_string = str(message.get_payload())
 							if 'permanent error' in message_as_string and 'Connection refused' in message_as_string:
 								match = re.search('(?<=[<])([A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,6})', message_as_string)
 								print match.group(0)
 								email_list.append(match.group(0))
-							md_non_multipart.append(message.get_payload())
+							md_non_multipart.append(message)
 							number_not_multipart += 1
 
 					elif POSTMASTER in message_from:
 						postmaster_count += 1
-						if message.is_multipart() and message.get_payload(1).get_content_type() == 'message/delivery-status':
+						if message.is_multipart():
 							postmaster_number_multipart += 1
-							match = pattern.search(message.get_payload(1).get_payload()[1]['Final-Recipient'])
-							email_address = match.group(0).strip()
-							postmaster.append(message.get_payload(1))
-							email_list.append(email_address)
+
+							if action_failed(message):
+								email_address = get_email_address(message, pattern)
+								postmaster.append(message.get_payload(1).get_payload(1))
+								print email_address
+								email_list.append(email_address)
 
 						else:
 							postmaster_number_not_multipart += 1
+							postmaster_non_multipart.append(message)
 
 	# Save different email kinds to text files
 	print "Writing mailer daemon multipart emails to text file..."
@@ -120,6 +122,12 @@ def main():
 	for index in range(len(postmaster)):
 		postmaster_file.write(str(postmaster[index]))
 	print "Done"
+
+	print "Writing postmaster non multipart emails to text file..."
+	postmaster_non_multipart_file = open('1_postmaster_nm.txt', 'wb')
+	for index in range(len(postmaster_non_multipart)):
+		postmaster_non_multipart_file.write(str(postmaster_non_multipart[index]))
+	print "Done"
 	
 	# Print out report for user to see.
 	print "Total number of emails: %i" % total_emails
@@ -136,6 +144,19 @@ def main():
 	print "Total number of postmaster messages: %i" % postmaster_count
 	print "Number of multipart postmaster messages: %i" % postmaster_number_multipart
 	print "Number of non multipart postmaster messages: %i" % postmaster_number_not_multipart
-	
+
+def action_failed(message):
+	for part in message.walk():
+		if part['action'] == "failed":
+			return True
+	return False # Only returns if all of the messages have been walked through
+
+def get_email_address(message, pattern):
+	for part in message.walk():
+		if part['Final-Recipient'] is not None:
+			match = pattern.search(part['Final-Recipient'])
+			return match.group(0).strip()
+			
+
 if __name__ == "__main__":
     main()
