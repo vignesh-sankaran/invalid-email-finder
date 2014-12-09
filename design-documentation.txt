@@ -1,24 +1,67 @@
-This document's purpose is to highlight and discuss design decisions that were made in the creation of the invalid-email-finder script
+This document's purpose is to highlight and discuss design decisions that were made in the creation of the invalid-email-finder script, so that anyone that works on this script in the future, or anyone that decides to fork the project, will know why I did things in the specific way I did. I am well aware that because I hacked this script together in roughly a week or so after much preliminary work investigating the .mbox file Engineers Without Borders gave me, this script might actually be quite ineffective in finding that many invalid emails. Nonetheless, I find it necessary for me to write this document to explain my choices and reasoning. 
 
 Overview:
-The purpose of this script is to capture and record invalid emails that are contained within a mbox file. These files are the backup files of an email address' inbox, so they can get large. 
+The purpose of this script is to capture and record invalid emails that are contained within a mbox file. These files are the backup files of an email address' inbox, so they can be quite large. Consequently, going through a .mbox file will take quite a long time, perhaps upwards of 10 seconds on a file with > 2.5 million lines of text. 
 
-The script uses a regular expression to parse through an email to see if the conditions for it being invalid are true. The conditions for an email found to be invalid will be discussed below. 
+The script relies upon a certain number of assumptions to be true of potentially invalid emails in order to extract them out, which is discussed in detail below. 
 
 Language:
-Python was chosen because of its easy to read syntax and less difficulty in learning it for a newcomer working on this script. The ultimate test of its ease of learning is me having to learn how to use it within a week to make this script :). 
+Python was chosen because of its easy to read syntax and less difficulty in learning it for a newcomer working on this script. The ultimate test of its ease of learning is me having to learn how to use it within a week to make this script :). Personally I find Python to be of the same difficulty of other scripting languages because at the end of the day, they all do the same thing: express logical concepts. Python just does this in a more verbose but easier to read method. 
 
-Conditions for an invalid email
-Emails that bounce from email servers are delivered in a format called Delivery Status Notifications. Unfortunately, email providers, whether private corporations, universities, or email providers e.g. Gmail, use their own format for sending these messages, making it impossible to use just one method of finding an invalid email. After much researching, I decided to use the following methodology to find invalid emails.
+Initial tasks prior to invalid email finding:
+One must supply a valid directory to the .mbox file in question. For some weird reason, the OS package in python doesn't like directories with ~/ in them. So one must supply the full, non abbreviated directory to the file in question. 
 
-The first check I used to find an invalid email address was to see whether the 
+I am also aware that one can't quit the program at this point, if I ever come back to this script I'll do something about both the abbreviated directory problem and the inability to quit the program, at least when entering the directory name. 
 
-Regular expression: 
-To the unitiated eye, regular expressions are the things hackers use to hack :). In fact, they are actually a very useful to searching for patterns in text files. 
+After one supplies the directory, it is a simple matter of validating the directory via the OS package (and asking the user to re insert a directory if it is invalid), checking to see that the directory supplied points to a .mbox file, and importing the mbox file into the script via the mailbox package. 
 
-The regular expression used to find invalid emails in an .mbox file in this script is this:
+Handling the mailbox and emails within:
+Python comes with the mailbox package by default. This package allows one to import a .mbox file as an object, and consists of emails that are also their own object. which means that rather than having to search the entire .mbox file manually with a regular expression, I can now go through each email individually and access the email fields directly e.g. FROM. 
+
+Conditions for an invalid email:
+Emails that bounce from email servers are delivered in a format called Delivery Status Notifications (DSN). Unfortunately, email providers, whether private corporations, universities, or email providers e.g. Gmail, use their own format for sending these messages, making it impossible to use just one method of finding an invalid email. After much researching, I decided to use the following methodology to find invalid emails.
+
+The first check used to find an invalid email address was to ensure that the word "delay" is not in the subject line. We don't want to include emails that failed to send because they've been delayed by the email server. Most delayed emails do end up failing to send, but whether they successfully send to a valid email address is unknown. Thus, they are left out. 
+
+The next check is again the subject line, to check if the key words "undeliverable", "fail", "undelivered mail", or "returned mail" appear. These words were chosen based on an analysis for potential DSNs in an .mbox file given by EWB. These words far from cover all of the possible words used in a DSN, and there will probably be some DSNs that miss this test. 
+
+After checking the subject line, the next check is to find a FROM email address that begins with postmaster@ or mailer-daemon@. Based on some prior analysis of an .mbox file provided by EWB, these two addresses were indicative of a DSN. Unfortunately, any DSNs that are not from the above email addresses will not be detected, and it is unknown what other email addresses they could come from. 
+
+If the email address is from mailer-daemon@googlemail.com, the email is from Gmail. Gmail DSNs come with a field known as X-Failed-Recipients. This makes picking up invalid emails bounced from Gmail very simple and a non issue :).
 
 
-Here is a breakdown of what this impossible bunch of symbols, letters, and numbers mean in English:
+DSNs from multipart emails. 
+The next possibility is if the mailer-daemon@ sourced email is recognised as multipart by the mailbox package. Multipart emails can have their respective parts accessed using array notation e.g. email.get_payload(1). As a matter of note, extracting a subpart of a multipart email requires the syntax email.get_payload(1).get_payload(), since doing email.get_payload(1) will only return the memory address of the email subpart. 
 
+One of the parts of the email has a part that looks like this:
+
+From nobody Wed Nov 26 20:29:41 2014
+Final-Recipient: rfc822;test@test.com
+Action: failed
+Status: 5.0.0 (permanent failure)
+Diagnostic-Code: smtp; 5.1.1 - Bad destination email address 'reject' (delivery
+ attempts: 0)
+
+Multipart emails from both postmaster@ and mailer-daemon@ email addresses have this part at the same array index (1 for this particular file that was used), but there may be emails that don't have it at this particular index. In an attempt to manage this potential problem, a mailbox package function, msg.walk() (more here: https://docs.python.org/2/library/email.message.html?highlight=walk#email.message.Message.walk) is used to go through each part and eventually find the part that has the Final-Recipient field in it. By default, if a field is not found, a None object type unique to Python is returned.  
+
+The key field here are Final-Recipient. In a future update, a test for Action to ensure that it states "failed" rather than another error message that may have been missed in the test of the subject line may also be included.
+
+As visible in the above example, the Final-Recipient field has a rfc822; preceding the email address that is to be extracted. Some had capital RFC, some had a space trailing the semicolon before the email. To extract the email, the following regular expression was used. 
+
+(?<=rfc822;)(.)+
+
+Regular expressions may appear complicated, but are actually relatively simple in their operation and their meaning. 
+() is a group. 
+
+?<= is a positive lookbehind. Positive in this instance means that we want this condition to be met. A lookbehind is a statement that means that when the regular expression engine reaches a point in text, the text string "rfc822;" must be behind the point in order to capture the next group. Lookbehind statements are known as non-capturing groups. That is, a true lookbehind statement will not return a value. 
+
+. is a wildcard character that represents any character except a new line. + means pick up 1 or more of these characters. 
+
+The above test is also used for multipart emails deriving from postmaster@ email addresses. 
+
+In the provided .mbox file, there were potential non multipart DSNs from postmaster@ email addresses. There were 2 however, sourced from mailer-daemon@ email addresses. Both of these emails were specifically from the qmail email server program. To cater for this particular email program, the key words "Connection refused" and "permanent error" are used to ensure that the DSN is caused by an invalid email. The following regular expression is then used to handle the extraction of the invalid email address:
+
+(?<=[<])([A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,6}
+
+Once again, a lookbehind is used to check for the angled bracket <. [] represents a character class, which is used to 
 
