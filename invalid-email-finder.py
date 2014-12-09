@@ -96,7 +96,7 @@ def find_email_addresses(inbox):
 						# No email from google is multipart, that's ok, we can use the X-Failed-Recipients field instead :D
 						raw_email_address_list.append(message['X-Failed-Recipients'].strip())
 
-					elif MAILER_DAEMON in message_from and GMAIL_EMAIL_ADDRESS not in message_from:
+					elif MAILER_DAEMON in message_from
 						if message.is_multipart():
 							# Get email address stored within second subpart within email header.
 							# This if statement is to ensure the email is a DSN, since not all emails have the type message/delivery-status
