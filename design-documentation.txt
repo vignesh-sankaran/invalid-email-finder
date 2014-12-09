@@ -56,8 +56,11 @@ Regular expressions may appear complicated, but are actually relatively simple i
 
 . is a wildcard character that represents any character except a new line. + means pick up 1 or more of these characters. 
 
-The above test is also used for multipart emails deriving from postmaster@ email addresses. 
+The problem with this regular expression is that the retrieved email sometimes has a trailing space in front of it. Python has a .strip() method that is used in the script to remove all trailing and leading white spaces. 
 
+The above test for retrieving an invalid email from is also used for multipart emails deriving from postmaster@ email addresses. 
+
+Non multipart emails:
 In the provided .mbox file, there were potential non multipart DSNs from postmaster@ email addresses. There were 2 however, sourced from mailer-daemon@ email addresses. Both of these emails were specifically from the qmail email server program. To cater for this particular email program, the key words "Connection refused" and "permanent error" are used to ensure that the DSN is caused by an invalid email. The following regular expression is then used to handle the extraction of the invalid email address:
 
 (?<=[<])([A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,6}
@@ -77,5 +80,7 @@ The problem with this regular expression is that it will not find longer email a
 Unfortunately, another way to retrieve invalid email addresses from other non multipart emails is unknown. The only way to resolve this is to further consult with experts in the email standards and its implementation across different email service providers and email server programs. 
 
 Removing duplicates and saving to .csv file:
-After the 
+Extracted emails are stored in a list. The list is then processed to remove duplicates from the list. set() finds the unique elements within a list. list() ensures that the output is in a list.
+
+Python's csv package method .write() expects a multidimensional list. However, the email list is a single dimension list. To work around this issue, an individual row is written for the heading, and an individual row is written for each email manually via a foreach loop. 
 
