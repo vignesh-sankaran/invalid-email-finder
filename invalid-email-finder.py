@@ -78,7 +78,7 @@ def find_email_addresses(inbox):
 
 	# Regular expression pattern 
 	multipart_pattern = re.compile('(?<=rfc822;)(.)+', re.IGNORECASE) # Regular expression checks for preceding rfc822 before picking up remaining string
-	md_non_multipart_pattern = re.compile('(?<=[<])([A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,6})', re.IGNORECASE) # Checks for < preceding before picking up a valid email address
+	md_non_multipart_pattern = re.compile('(?<=[<])([A-Za-z0-9._%+-]+@.+)(?=[>]{1})', re.IGNORECASE) # Checks for < preceding email address, and > following it
 
 	print "Extracting invalid emails from the mbox file. Please be patient, this could take a while"
 	for message in inbox:
@@ -105,7 +105,7 @@ def find_email_addresses(inbox):
 								raw_email_address_list.append(email_address)
 
 						else: # These non multipart emails from mailer-daemon are from the qmail email server program
-							message_as_string = str(message.get_payload())
+							message_as_string = str(message.get_payload()) # get_payload() gets the entire message body if the email is not multipart
 							if PERMANENT_ERROR in message_as_string and CONNECTION_REFUSED in message_as_string:
 								match = md_non_multipart_pattern.search(message_as_string)
 								raw_email_address_list.append(match.group(0))
