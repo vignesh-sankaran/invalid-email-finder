@@ -61,23 +61,27 @@ The problem with this regular expression is that the retrieved email sometimes h
 The above test for retrieving an invalid email from is also used for multipart emails deriving from postmaster@ email addresses. 
 
 Non multipart emails:
-In the provided .mbox file, there were potential non multipart DSNs from postmaster@ email addresses. There were 2 however, sourced from mailer-daemon@ email addresses. Both of these emails were specifically from the qmail email server program. To cater for this particular email program, the key words "Connection refused" and "permanent error" are used to ensure that the DSN is caused by an invalid email. The following regular expression is then used to handle the extraction of the invalid email address:
+In the provided .mbox file, there were potential non multipart DSNs from postmaster@ email addresses. There were 2 however, sourced from mailer-daemon@ email addresses. Both of these emails were specifically from the qmail email server program. To cater for this particular email program, the key words "Connection refused" and "permanent error" are used to ensure that the DSN is caused by an invalid email. A regular expression is then used to extract the email address between the angled brackets. In v0.1, the following regular expression was used for the purpose of extracting the invalid email address:
 
-(?<=[<])([A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,6}
+(?<=[<])([A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,6})
 
-Once again, a lookbehind is used to check for the angled bracket < prior to the email. [] represents a character class, which is used to search for a specific set of characters definied within the square brackets. The email address is stored within <>. However, it is not possible to retrieve the email address with a wildcard (.) as there are other angled bracketed fields in the DSN as well. Instead, a regular expression is used to pick up the email.
+Once again, a lookbehind is used to check for the angled bracket < prior to the email. [] represents a character class, which is used to search for a specific set of characters definied within the square brackets. The email address is stored within <>. There may be other fields with values between angled brackets, so it is not possible to use a wildcard (.) to search for everything within angled brackets. 
 
 First, the text prior to the @ symbol is picked up. The character class [A-Za-z0-9._%+-] is used to pick up any character that is a capital or lower case letter, all numbers between 0 to 9, and the symbols _, %, +, and -. To ensure that this expression picks up every character prior to the @ in an email, + precedes the character class. 
 
 Finding the part of the email address following the @ but before the first full stop is a simple reuse of the previous character class to find it.
 
-\. represents a full stop, the preceding backslash is necessary because a full stop without the escape backslash is a wildcard representing any character except a newline. 
+\. represents a full stop, the preceding backslash is necessary because a full stop without the escape backslash is a wildcard representing any character except a newline (i.e. a line break). 
 
 [A-Za-z]{2,6} means that up to 2 to 6 letters can be found after the full stop.
 
-The problem with this regular expression is that it will not find longer email addresses, especially those from universities e.g. student.monash.edu. This can be fixed by detecting the first part of the email address, and after the at, capturing all remaining characters before the angled bracket >. 
+The problem with the above regular expression is that it will find an email, but will not recognise emails with domains longer than 2 parts, or other unique domains. In other words, it will recognise the email domain @gmail.com, but potentially not @business.melbourne or @student.monash.edu. To resolve this potential issue, the regular expression was modified to its current form in v0.11:
 
-Unfortunately, another way to retrieve invalid email addresses from other non multipart emails is unknown. The only way to resolve this is to further consult with experts in the email standards and its implementation across different email service providers and email server programs. 
+(?<=[<])([A-Za-z0-9._%+-]+@.+)(?=[>]{1})
+
+The change made here is that a wildcard is used to pick up the remaining characters after the @. However, this will also pick up the angled bracket > following the email address. To resolve this issue, a positive lookahead (?=) is used to check if 1 angled bracket lies ahead of the end of the email address. 
+
+Unfortunately, another way to retrieve invalid email addresses from other non multipart emails is unknown. The only way to resolve this is to further consult with experts in the email standards and its implementation across different email service providers and email server programs.
 
 Removing duplicates and saving to .csv file:
 Extracted emails are stored in a list. The list is then processed to remove duplicates from the list. set() finds the unique elements within a list. list() ensures that the output is in a list.
